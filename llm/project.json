@@ -1,0 +1,59 @@
+{
+  "name": "llm",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "llm/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "platform": "node",
+        "outputPath": "dist/llm",
+        "format": ["cjs"],
+        "bundle": false,
+        "main": "llm/src/main.ts",
+        "tsConfig": "llm/tsconfig.app.json",
+        "assets": ["llm/src/assets"],
+        "generatePackageJson": true,
+        "esbuildOptions": {
+          "sourcemap": true,
+          "outExtension": {
+            ".js": ".js"
+          }
+        }
+      },
+      "configurations": {
+        "development": {},
+        "production": {
+          "esbuildOptions": {
+            "sourcemap": false,
+            "outExtension": {
+              ".js": ".js"
+            }
+          }
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "llm:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "llm:build:development"
+        },
+        "production": {
+          "buildTarget": "llm:build:production"
+        }
+      }
+    }
+  }
+}
