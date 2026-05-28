@@ -1,9 +1,7 @@
 {
   "workspaces": [
-    "auth",
-    "game",
-    "llm",
-    "lobby"
+    "server",
+    "llm"
   ],
   "devDependencies": {
     "@eslint/js": "^9.8.0",

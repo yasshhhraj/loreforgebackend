@@ -1,7 +1,7 @@
 {
-  "name": "game",
+  "name": "server",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "game/src",
+  "sourceRoot": "server/src",
   "projectType": "application",
   "tags": [],
   "targets": {
@@ -11,12 +11,12 @@
       "defaultConfiguration": "production",
       "options": {
         "platform": "node",
-        "outputPath": "dist/game",
+        "outputPath": "dist/server",
         "format": ["cjs"],
         "bundle": false,
-        "main": "game/src/main.ts",
-        "tsConfig": "game/tsconfig.app.json",
-        "assets": ["game/src/assets"],
+        "main": "server/src/main.ts",
+        "tsConfig": "server/tsconfig.app.json",
+        "assets": ["server/src/assets"],
         "generatePackageJson": true,
         "esbuildOptions": {
           "sourcemap": true,
@@ -43,15 +43,15 @@
       "defaultConfiguration": "development",
       "dependsOn": ["build"],
       "options": {
-        "buildTarget": "game:build",
+        "buildTarget": "server:build",
         "runBuildTargetDependencies": false
       },
       "configurations": {
         "development": {
-          "buildTarget": "game:build:development"
+          "buildTarget": "server:build:development"
         },
         "production": {
-          "buildTarget": "game:build:production"
+          "buildTarget": "server:build:production"
         }
       }
     }
