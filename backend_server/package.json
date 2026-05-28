@@ -5,19 +5,28 @@
   "license": "ISC",
   "author": "Yashraj",
   "type": "module",
-  "main": "index.js",
+  "main": "build/src/script.js",
   "scripts": {
-    "test": "echo test"
+    "test": "echo test",
+    "build": "tsc && chmod 755 build/src/script.js && cp ./package.json build/package.json && cp .env build/.env",
+    "start": "tsx build/src/script.js",
+    "dev": "tsx watch src/script.ts"
+  },
+  "files": [
+    "build"
+  ],
+  "bin": {
+    "backend_server": "./build/src/script.js"
   },
   "dependencies": {
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "6.19",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongodb": "^7.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "prisma": "^7.8.0",
+    "prisma": "6.19",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   }
