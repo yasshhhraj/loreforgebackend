@@ -8,20 +8,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User { 
-  id    String  @id @default(auto()) @map("_id") @db.ObjectId
-  email String  @unique
-  name  String?
-  posts Post[]
-} 
-
-model Post { 
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  title     String
-  content   String?
-  published Boolean @default(false) 
-  author    User    @relation(fields: [authorId], references: [id]) 
-  authorId  String  @db.ObjectId
+// ==========================================
+// 1. THE WARM STATE (Lobby & World Bible)
+// ==========================================
+model Lobby {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  lobby_id     String       @unique @default(uuid())
+  turn_counter Int          @default(0)
+  
+  // Stored as Json to support the String[][] structure you requested
+  // Enforced by the DBlayer Server to hold compressed major plot points
+  world_bible  Json         @default("[]") 
+  
+  // Relations
+  characters   Character[]
+  turn_ledgers TurnLedger[]
 }
 
+// ==========================================
+// 2. THE COLD STATE (Characters & Mechanics)
+// ==========================================
+model Character {
+  id           String  @id @default(auto()) @map("_id") @db.ObjectId
+  character_id String  @unique @default(uuid())
+  
+  // Player Identity Data
+  name         String  // The character name given by the player
+  description  String  // Physical or background description
+  
+  // Foreign Key to Lobby
+  lobby_id     String
+  lobby        Lobby   @relation(fields: [lobby_id], references: [lobby_id])
+  
+  // Hard Mechanics (The Ground Truth)
+  health       Int     @default(100)
+  inventory    Json    
+  capabilities Json    
+  bond_track   Json    
+  
+  // Fault Tolerance
+  is_ghosted   Boolean @default(false)
+}
 
+// ==========================================
+// 3. THE HOT CONTEXT (Turn Ledger)
+// ==========================================
+model TurnLedger {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  log_id      String @unique @default(uuid())
+  
+  // Foreign Key to Lobby
+  lobby_id    String
+  lobby       Lobby  @relation(fields: [lobby_id], references: [lobby_id])
+  
+  turn_number Int
+  
+  // Stores the exact schema: { inputs: [{ playerinput: String, playersecretintentinput: String }], prose: String }
+  // This captures both the "Two-Box" inputs and the Agent's unedited prose transcript
+  turn_data   Json   
+}
