@@ -1,0 +1,510 @@
+# Loreforge v6.0 System Overview
+
+Loreforge is a multiplayer, text-driven role-playing framework orchestrated by an autonomous AI Game Master. Players interact with the world through a dual-input system, submitting both a public action and a private intent every round. The engine is designed around a strict separation of responsibilities that enables dynamic AI-driven storytelling while maintaining deterministic game-state integrity, rule enforcement, and multiplayer synchronization.
+
+The system follows five core architectural principles:
+
+* AI-generated content must never have direct authority over persistent state.
+* All state mutations must be validated before execution.
+* Narrative generation and rule enforcement must remain independent concerns.
+* Multiplayer synchronization must produce a single authoritative world state for all participants.
+* Long-term narrative continuity must persist beyond the context limitations of large language models.
+
+Loreforge is implemented as a modular monolith using a layered architecture that combines WebSocket orchestration, AI evaluation, transactional persistence, and memory management within a single deployable application while maintaining strict internal boundaries between responsibilities.
+
+---
+
+# Architectural Structure
+
+Loreforge follows a four-layer architecture:
+
+```text
+Routes
+   ↓
+Controllers
+   ↓
+Services
+   ↓
+Repositories
+   ↓
+Database
+```
+
+Each layer communicates only with adjacent layers and owns a clearly defined responsibility.
+
+---
+
+# 1. Route Layer
+
+The Route Layer serves as the application's entry point.
+
+Responsibilities include:
+
+* HTTP endpoint registration.
+* WebSocket endpoint registration.
+* Authentication middleware.
+* Authorization middleware.
+* Request routing.
+* Request preprocessing.
+* Delegation to controllers.
+
+The Route Layer contains no game logic, AI logic, persistence logic, or database access.
+
+Its sole purpose is to expose the system's functionality and direct incoming requests to the appropriate controller.
+
+---
+
+# 2. Controller Layer
+
+The Controller Layer orchestrates gameplay sessions and manages communication between connected players and the game engine.
+
+Responsibilities include:
+
+* Managing WebSocket connections.
+* Tracking active sessions.
+* Handling player submissions.
+* Managing reconnect events.
+* Executing the Ghosting Protocol.
+* Coordinating No-Timer Synchronization.
+* Managing round progression.
+* Broadcasting updates to clients.
+* Coordinating execution flow between layers.
+
+Players interact with the game through a **Two-Box** input system:
+
+* Public Action
+* Secret Intent
+
+Both inputs are collected simultaneously and stored until all active players have submitted their turns.
+
+The Controller Layer contains no AI logic, rule evaluation logic, validation logic, or persistence logic.
+
+It acts solely as the orchestrator of gameplay flow.
+
+---
+
+# 3. Service Layer
+
+The Service Layer functions as the core game engine and AI orchestration system.
+
+Responsibilities include:
+
+* Context gathering.
+* Prompt construction.
+* LLM interaction.
+* AI response parsing.
+* Narrative generation.
+* Action adjudication.
+* Outcome generation.
+* Memory summarization.
+* Structured mutation generation.
+
+The Service Layer is intentionally stateless.
+
+Rather than modifying persistent state directly, it evaluates the current world situation and produces structured proposals describing what should happen.
+
+The AI Game Master receives contextual information from the memory system and returns four distinct outputs.
+
+### Narrative Output
+
+The prose shown to players.
+
+### State Mutations
+
+Structured descriptions of intended world-state changes.
+
+Examples include:
+
+* Health changes
+* Inventory changes
+* Relationship updates
+* Location transitions
+* Capability modifications
+
+### Turn Logs
+
+Structured records of what occurred during the turn.
+
+### Memory Updates
+
+Updates intended for long-term narrative memory systems.
+
+The Service Layer treats all AI-generated outputs as proposals rather than authoritative truth.
+
+No database writes occur at this layer.
+
+---
+
+# 4. Repository Layer
+
+The Repository Layer acts as both the persistence gateway and the system's primary gatekeeper.
+
+It is the only layer permitted to communicate directly with the database and serves as the final authority before any world-state modification can occur.
+
+Responsibilities include:
+
+* Data retrieval.
+* Query abstraction.
+* Memory retrieval.
+* Persistence orchestration.
+* Transaction management.
+* Database communication.
+* Schema validation.
+* Business-rule enforcement.
+* Referential integrity verification.
+* Mutation authorization.
+* State-transition validation.
+* Data sanitization.
+
+When the Service Layer requires information, it requests it through repositories.
+
+When the Service Layer generates mutation proposals, those proposals are routed through repositories before any persistence occurs.
+
+Repositories never trust incoming mutations.
+
+Every proposed mutation generated by:
+
+* Players
+* AI systems
+* Internal services
+
+must pass repository validation before reaching persistence.
+
+Validation is performed using strict deterministic schemas and rule systems.
+
+Examples of rejected mutations include:
+
+* References to non-existent entities.
+* Invalid field names.
+* Impossible inventory operations.
+* Illegal health values.
+* Rule-breaking capability upgrades.
+* Unauthorized relationship modifications.
+* Malformed JSON structures.
+* Contradictory world-state transitions.
+* Hallucinated schema fields.
+
+The Repository Layer guarantees:
+
+* The AI cannot invent schema fields.
+* The AI cannot bypass game rules.
+* Database integrity remains protected.
+* State transitions remain deterministic.
+* Only legal mutations reach persistence.
+
+Once validation succeeds, repositories execute atomic database transactions.
+
+All updates either succeed together or fail together.
+
+No partial world updates can occur.
+
+This guarantees consistency across the entire game world and prevents race conditions during concurrent gameplay.
+
+The Repository Layer functions as the system's constitutional authority governing all world-state changes.
+
+---
+
+# Database Layer
+
+The database serves as the authoritative source of truth for the game world.
+
+Persistent records include:
+
+* Players
+* Characters
+* Sessions
+* Inventories
+* Locations
+* Relationships
+* Bond Tracks
+* Capabilities
+* Turn Logs
+* World Memory Records
+* Historical Events
+* Narrative Summaries
+
+The Repository Layer serves as the exclusive gateway to persistence.
+
+Every database write must first pass repository validation and transaction controls before reaching the database.
+
+---
+
+# Memory Architecture
+
+A fundamental challenge of AI-driven games is the limited context window of large language models.
+
+Loreforge solves this through a three-layer memory architecture designed to preserve both factual consistency and narrative continuity across potentially thousands of turns.
+
+---
+
+## Cold State
+
+Cold State represents the authoritative structured state of the world.
+
+This is the factual ground truth.
+
+Stored information includes:
+
+* Character statistics.
+* Health values.
+* Resources.
+* Inventories.
+* Equipment.
+* Capabilities.
+* Relationships.
+* Bond metrics.
+* Locations.
+* World entities.
+* Quest progress.
+* Faction standings.
+
+Cold State is never summarized.
+
+It remains fully structured and deterministic.
+
+---
+
+## Warm State
+
+Warm State serves as long-term narrative memory.
+
+This layer compresses important events into concise summaries that can persist indefinitely.
+
+Stored information includes:
+
+* Major plot developments.
+* Character arcs.
+* Significant discoveries.
+* Political changes.
+* World-altering events.
+* Campaign milestones.
+* Persistent consequences.
+
+Warm State functions as the campaign's **World Bible**.
+
+Its purpose is to preserve narrative continuity without requiring the full historical transcript.
+
+---
+
+## Hot Context
+
+Hot Context contains the immediate gameplay history.
+
+Stored information includes:
+
+* Recent turn transcripts.
+* Recent dialogue.
+* Current objectives.
+* Active conflicts.
+* Scene context.
+* Ongoing investigations.
+* Immediate player interactions.
+
+Hot Context provides short-term situational awareness and conversational continuity.
+
+Typically, it contains the most recent rounds of gameplay in raw, uncompressed form.
+
+---
+
+# Turn Execution Flow
+
+Every round follows a deterministic execution pipeline.
+
+---
+
+## 1. Player Submission
+
+Players submit:
+
+* Public Actions
+* Secret Intents
+
+through the Route and Controller layers.
+
+---
+
+## 2. Synchronization
+
+The Controller Layer executes No-Timer Synchronization.
+
+The game waits until all active players have submitted their turns before advancing.
+
+This guarantees simultaneous resolution.
+
+---
+
+## 3. Context Assembly
+
+The Controller requests round execution.
+
+The Service Layer gathers context through repositories.
+
+Repositories retrieve:
+
+* Cold State
+* Warm State
+* Hot Context
+
+from persistent storage.
+
+The complete context package is assembled for evaluation.
+
+---
+
+## 4. AI Evaluation
+
+The Service Layer submits the assembled context to the AI Game Master.
+
+The AI evaluates:
+
+* Player actions.
+* Secret intentions.
+* Current world state.
+* Narrative history.
+* Active rules.
+
+The AI then produces:
+
+* Narrative prose.
+* Structured mutations.
+* Turn logs.
+* Memory updates.
+
+At this stage, all generated outputs remain proposals.
+
+No database modifications occur within the Service Layer.
+
+---
+
+## 5. Repository Gatekeeping
+
+The Service Layer forwards the generated mutation package to the Repository Layer.
+
+The Repository Layer acts as the system's exclusive gatekeeper and sole authority over persistence.
+
+Before any state modification can occur, the Repository Layer performs strict validation against deterministic schemas and business rules.
+
+Validation includes:
+
+* Zod schema validation.
+* Type verification.
+* Referential integrity checks.
+* State-transition validation.
+* Business-rule enforcement.
+* Mutation authorization.
+* Data sanitization.
+
+Any mutation that violates game rules, references invalid entities, introduces hallucinated fields, or creates an illegal state transition is rejected before persistence.
+
+Only fully legal mutation packages are approved.
+
+This process ensures that AI-generated content can influence the world but can never directly control it.
+
+---
+
+## 6. Atomic Persistence
+
+Once validation succeeds, the Repository Layer executes a single atomic database transaction.
+
+Within that transaction, the system updates:
+
+* Cold State.
+* Character statistics.
+* Relationship data.
+* Inventory data.
+* World-state records.
+* Turn logs.
+* Memory records.
+
+All updates either succeed together or fail together.
+
+No partial world updates can occur.
+
+This guarantees consistency across the entire game world and prevents race conditions during concurrent gameplay.
+
+---
+
+## 7. Memory Updates
+
+Validated memory updates are written to:
+
+* Cold State.
+* Warm State.
+* Hot Context.
+
+Each memory tier is updated according to its retention strategy.
+
+---
+
+## 8. Broadcast
+
+Once persistence succeeds, the Controller Layer immediately broadcasts:
+
+* Updated statistics.
+* Character changes.
+* Inventory updates.
+* Relationship changes.
+* World-state modifications.
+* Narrative output.
+
+All players receive the same authoritative result simultaneously.
+
+This prevents race conditions and divergent world states.
+
+---
+
+# Scalability Strategy
+
+Loreforge is optimized to operate as a modular monolith.
+
+This approach minimizes:
+
+* Internal network latency.
+* Infrastructure complexity.
+* Deployment overhead.
+* Distributed failure points.
+* Service coordination costs.
+
+For early and medium-scale deployments, a single application instance provides the best balance of simplicity, performance, and maintainability.
+
+As concurrency grows, horizontal scaling can be achieved by separating responsibilities into specialized workloads.
+
+### Gateway Nodes
+
+Responsible for:
+
+* Routes.
+* Controllers.
+* WebSocket management.
+* Session coordination.
+
+### Engine Workers
+
+Responsible for:
+
+* Services.
+* Repositories.
+* AI evaluation.
+* Validation and gatekeeping.
+* Database transactions.
+
+This scaling strategy preserves all architectural boundaries while allowing computational workloads to scale independently.
+
+---
+
+# Design Principles
+
+Loreforge is built upon several foundational principles:
+
+* AI generates proposals but never authoritative state.
+* Persistent data is protected through repository-level validation and transactional guarantees.
+* Narrative generation and rule enforcement remain separate concerns.
+* Multiplayer synchronization prioritizes deterministic outcomes.
+* Long-term continuity is preserved through layered memory systems.
+* Every world-state modification is traceable and reproducible.
+* Architectural boundaries are enforced through code-layer separation rather than network separation.
+* Database access is centralized and controlled.
+* Illegal state transitions are impossible by design.
+* The game world always maintains a single authoritative truth.
+
+The result is an AI-driven multiplayer RPG framework capable of delivering emergent storytelling, hidden player intentions, persistent world simulation, and long-running narrative campaigns while maintaining the consistency, predictability, and integrity expected from a traditional game engine.

@@ -1,0 +1,12 @@
+{
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "featureOpener.whitelistedDirectories": [
+        "controllers",
+        "middlewares",
+        "repositories",
+        "routes",
+        "services",
+        "utils",
+        "validations"
+    ]
+}
