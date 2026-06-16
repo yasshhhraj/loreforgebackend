@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middlewares/auth.middleware';
+import { CharacterController } from '../controllers/character.controller';
 
 const router = Router();
 
@@ -8,5 +9,12 @@ const router = Router();
 router.use(authMiddleware);
 
 // Character-specific routes can be added here.
+
+const characterController = new CharacterController();
+
+
+
+router.post('/', characterController.createCharacter);
+
 
 export default router;

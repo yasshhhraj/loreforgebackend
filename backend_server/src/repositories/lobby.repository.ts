@@ -13,6 +13,20 @@ export class LobbyRepository {
     });
   }
 
+  async addParticipant(userId: string, lobbyId: string) {
+    const lobby = await prisma.lobby.findUnique({
+      where: { lobby_id: lobbyId },
+      select: { users: true }
+    });
+    lobby?.users.push(userId);
+    await prisma.lobby.update({
+      where: { lobby_id: lobbyId },
+      data: {
+        users: lobby?.users || []
+      }
+    });
+  }
+
   // The Read Action (For the UI Waiting Room)
   async getLobbyWithParticipants(lobbyId: string) {
     return await prisma.lobby.findUnique({

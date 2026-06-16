@@ -11,19 +11,17 @@ datasource db {
 // ==========================================
 // AUTHENTICATION & CREDENTIAL MODELS
 // ==========================================
-
 model User {
-  id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  email        String      @unique
-  username     String      @unique
-  passwordHash String?     // Nullable to support pure OAuth setups (Discord/Google)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  email        String   @unique
+  username     String   @unique
+  passwordHash String? 
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  // Relations
-  sessions     Session[]
-  accounts     Account[]   // Stores third-party OAuth metadata
-  characters   Character[] // One user can own multiple characters across different lobbies
+  sessions   Session[]
+  accounts   Account[] 
+  characters Character[] 
 }
 
 model Session {
@@ -38,7 +36,7 @@ model Account {
   id                String  @id @default(auto()) @map("_id") @db.ObjectId
   userId            String  @db.ObjectId
   type              String
-  provider          String  // e.g., "discord", "google"
+  provider          String 
   providerAccountId String
   refresh_token     String? @db.String
   access_token      String? @db.String
@@ -54,60 +52,85 @@ model Account {
 }
 
 // ==========================================
-// 1. THE WARM STATE (Lobby & World Bible)
+// 1. THE WARM STATE (Lobby & Long-Term Memory)
 // ==========================================
 model Lobby {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  lobby_id     String       @unique @default(uuid())
-  turn_counter Int          @default(0)
-  world_bible  Json         @default("[]") 
-  
-  // Relations
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  lobby_id     String   @unique @default(uuid())
+  turn_counter Int      @default(0)
+  world_bible  String[] @default([]) 
+  users        String[] @default([]) 
+
   characters   Character[]
   turn_ledgers TurnLedger[]
+  pendingTurns PendingTurn[] 
+  events       EVENT[]
 }
 
 // ==========================================
-// 2. THE COLD STATE (Characters & Mechanics)
+// 2. THE COLD STATE (Hard Ground Truths)
 // ==========================================
 model Character {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  character_id String   @unique @default(uuid())
-  
-  // --- AUTHENTICATION LINK ---
-  // Connects this virtual character to a structural, physical user account
-  userId       String   @db.ObjectId
-  user         User     @relation(fields: [userId], references: [id])
-  
-  // Player Identity Data
-  name         String   
-  description  String   
-  
-  // Foreign Key to Lobby
-  lobby_id     String
-  lobby        Lobby    @relation(fields: [lobby_id], references: [lobby_id])
-  
-  // Hard Mechanics (The Ground Truth)
-  health       Int      @default(100)
-  inventory    Json    
-  capabilities Json    
-  bond_track   Json    
-  
-  // Fault Tolerance
-  is_ghosted   Boolean  @default(false)
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  character_id String @unique @default(uuid())
+  userId       String @db.ObjectId
+  user         User   @relation(fields: [userId], references: [id])
+
+  name        String
+  description String
+  lobby_id    String
+  lobby       Lobby  @relation(fields: [lobby_id], references: [lobby_id])
+
+  health       Int  @default(100)
+  inventory    Json
+  capabilities Json
+  bond_track   Json
+  is_ghosted   Boolean @default(false)
 }
 
 // ==========================================
-// 3. THE HOT CONTEXT (Turn Ledger)
+// 4. THE HISTORICAL ARCHIVE (Unprocessed Raw Turn History)
 // ==========================================
 model TurnLedger {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  log_id      String   @unique @default(uuid())
-  
-  // Foreign Key to Lobby
-  lobby_id    String
-  lobby       Lobby    @relation(fields: [lobby_id], references: [lobby_id])
-  
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  log_id      String @unique @default(uuid()) // The unique identifier for this specific turn execution
   turn_number Int
-  turn_data   Json   
+  turn_data   Json   // Your array containing all player actions submitted for this turn
+
+  lobby_id    String
+  lobby       Lobby  @relation(fields: [lobby_id], references: [lobby_id])
+  
+  // This side is optional because the TurnLedger is created BEFORE the event text is generated
+  event       EVENT? 
+
+  @@unique([lobby_id, turn_number])
+}
+
+// ==========================================
+// 3. THE HOT CONTEXT (Most Recent Detailed Events)
+// ==========================================
+model EVENT {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  text        String // The single processed narrative string of the turn
+  turn_number Int    // Kept here for easy "take: 10" sliding window queries
+  
+  // Clean 1:1 link back to the ledger that triggered it
+  turn_id     String @unique 
+  turn        TurnLedger @relation(fields: [turn_id], references: [log_id])
+
+  lobby_id    String 
+  lobby       Lobby      @relation(fields: [lobby_id], references: [lobby_id])
+
+  @@unique([lobby_id, turn_number]) 
+}
+
+// ==========================================
+// 5. PENDING TURN QUEUE (The Processing Stage)
+// ==========================================
+model PendingTurn {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  lobby_id       String @unique
+  lobby          Lobby  @relation(fields: [lobby_id], references: [lobby_id])
+  submitted      Json[]
+  submittedcount Int    @default(0)  
 }

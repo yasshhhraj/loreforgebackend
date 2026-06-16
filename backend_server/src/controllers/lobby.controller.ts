@@ -1,11 +1,8 @@
 import { Request, Response } from 'express';
 import { LobbyService } from '../services/lobby.service';
 import { LobbyCreateSchema, LobbyIdParamSchema } from '../validations/lobby.validation';
-import { CharacterForgeSchema } from '../validations/character.validation';
-import { CharacterService } from '../services/character.service';
 
 const lobbyService = new LobbyService();
-const characterService = new CharacterService();
 
 export class LobbyController {
   
@@ -37,17 +34,17 @@ export class LobbyController {
       }
 
       const { lobby_id } = LobbyIdParamSchema.parse(req.params);
-      const validatedData = CharacterForgeSchema.parse(req.body);
 
-      const character = await characterService.forgeCharacter(
-        userId,
-        lobby_id,
-        validatedData
-      );
+      // add code to validate lobby existence and capacity here if needed
+      const lobby = await lobbyService.fetchLobbyState(lobby_id);
+      if (!lobby) {
+        throw new Error('Lobby not found');
+      }
 
-      res.status(201).json({
-        message: "Character forged successfully. Locked into the execution loop.",
-        character
+      await lobbyService.addParticipantToLobby(userId, lobby_id);
+      res.status(200).json({
+        message: "User successfully joined the lobby. Forge your character and prepare for the adventure!",
+        lobby_id: lobby_id,
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

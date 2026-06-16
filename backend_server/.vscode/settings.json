@@ -6,6 +6,7 @@
         "repositories",
         "routes",
         "services",
+        "socket",
         "utils",
         "validations"
     ]

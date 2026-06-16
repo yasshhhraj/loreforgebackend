@@ -1,7 +1,6 @@
-import { PrismaClient } from "../../generated/prisma/client";
+import { prisma } from "../../lib/prisma";
 import { RegisterInput } from "../validations/auth.validation";
 
-const prisma = new PrismaClient();
 export class AuthRepository {
   async findUserByEmailOrUsername(identifier: string) {
     return prisma.user.findFirst({
